@@ -1,9 +1,11 @@
-from concurrent.futures import ProcessPoolExecutor 
 # region imports
 from heapq import heapify, heappop, heappush
 import re
 from collections import OrderedDict
-import time
+import time 
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial 
+import asyncio
 # endregion
 # function to check the time
 
@@ -256,27 +258,30 @@ def one(data):
 
 
 @timer
-def solve(input_data):
+async def solve(input_data):
     test_cases = change_towns_names(parse_input(input_data))
     if len(test_cases) == 0:
         return "Couldn't parse the data"
     results = []
 
     with ProcessPoolExecutor() as proces_pool:
-        res = [(test_cases[i]['graph'], test_cases[i]['paths']) for i in range(len(test_cases))]
-        for result in proces_pool.map(one, res):
-            results.append(result)
-    
+        loop = asyncio.get_running_loop()
+        res = [partial(one, (test_cases[i]['graph'], test_cases[i]['paths'])) for i in range(len(test_cases))]
+        call_coros = []
         
+        
+        for call  in res:
+            call_coros.append(loop.run_in_executor(proces_pool, call))
+        results = await asyncio.gather(*call_coros)
+       
         # Output the results
     for result in results:
         print(result)
     return results
 
-
 try:
     if __name__ == "__main__":
-        solve(example_input)
+        asyncio.run(solve(example_input))
 except Exception as e:
     print(e)
 # endregion
